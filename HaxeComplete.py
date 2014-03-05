@@ -1239,7 +1239,11 @@ class HaxeComplete( sublime_plugin.EventListener ):
                 args.append( ("-D","display-mode=" + display["mode"] ) )
 
             args.append( ("-D", "st_display" ) )
-            args.append( ("--display", display["filename"] + "@" + str( display["offset"] ) ) )
+            display_coords = display["filename"] + "@" + str( display["offset"] )
+            if display["toplevel"] :
+                display_coords += "@toplevel"
+
+            args.append( ("--display", display_coords ) )
             args.append( ("--no-output",) )
             args.append( ("-"+build.target , build.output ) )
             #args.append( ("-cp" , plugin_path ) )
@@ -1251,7 +1255,7 @@ class HaxeComplete( sublime_plugin.EventListener ):
         for a in args :
             cmd.extend( list(a) )
 
-        #print( cmd )
+        print( cmd )
         #
         # TODO: replace runcmd with run_command('exec') when possible (haxelib, maybe build)
         #
@@ -1285,7 +1289,8 @@ class HaxeComplete( sublime_plugin.EventListener ):
         if not autocomplete :
             self.panel_output( view , " ".join(cmd) )
 
-        #print( res.encode("utf-8") )
+        print( res,err )
+        
         status = ""
 
         if (not autocomplete) and (build.hxml is None) :
@@ -1623,24 +1628,27 @@ class HaxeComplete( sublime_plugin.EventListener ):
 
         if toplevelComplete :
             #print("toplevel")
-            comps = self.get_toplevel_completion( src , src_dir , self.get_build( view ) )
+            offset = userOffset
+        else :
+            offset = completeOffset
             #print(comps)
-
-        offset = completeOffset
 
         if src[offset-1]=="." and src[offset-2] in ".1234567890" :
             #comps.append(("... [iterator]",".."))
             comps.append((".","."))
 
-        if toplevelComplete and (inControlStruct or completeChar not in "(,") :
-            return comps,hints
+        #if toplevelComplete and (inControlStruct or completeChar not in "(,") :
+        #    return comps,hints
 
         inp = (fn,offset,commas,src[0:offset-1])
         if self.currentCompletion["inp"] is None or inp != self.currentCompletion["inp"] :
 
             temp = self.save_temp_file( view )
-            ret , haxeComps , status , hints = self.run_haxe( view , { "filename" : fn , "offset" : offset , "commas" : commas , "mode" : None })
+            ret , haxeComps , status , hints = self.run_haxe( view , { "toplevel" : toplevelComplete , "filename" : fn , "offset" : offset , "commas" : commas , "mode" : None })
             self.clear_temp_file( view , temp )
+            
+            if toplevelComplete and len(haxeComps) == 0 :
+                haxeComps = self.get_toplevel_completion( src , src_dir , self.get_build( view ) )
 
             if completeChar not in "(," :
                 comps = haxeComps
